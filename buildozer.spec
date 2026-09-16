@@ -14,9 +14,9 @@ requirements = python3,kivy==2.3.1,kivymd==2.0.0,materialyoucolor==3.0.3,materia
 orientation = portrait
 fullscreen = 0
 
+android.ndk = 25b
 android.api = 34
 android.minapi = 29
-android.ndk = 25b
 android.archs = arm64-v8a
 
 android.allow_backup = True

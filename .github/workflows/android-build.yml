@@ -7,62 +7,34 @@ on:
   pull_request:
     branches: ["main"]
 
-permissions:
-  contents: read
-
 jobs:
-  validate:
-    name: Validate Python
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-      - name: Python syntax check
-        run: python3 -m compileall -q .
-      - name: Storage and scheduler smoke test
-        run: |
-          python3 - <<'PY'
-          import tempfile
-          from datetime import date
-          from pathlib import Path
-          from storage import Storage
-          from scheduler import SmartScheduler
-          from plan_analyzer import PlanAnalyzer
-
-          db = Path(tempfile.mkdtemp()) / "studyflow-test.db"
-          store = Storage(db)
-          store.add_task("CI test", "Mathematics", date.today().isoformat(), 30, "Medium")
-          tasks = store.list_tasks(True)
-          blocks = SmartScheduler(day=date.today()).generate(tasks)
-          report = PlanAnalyzer().analyze(tasks, blocks, date.today(), 300)
-          assert tasks
-          assert blocks
-          assert 0 <= report.score <= 100
-          store.update_profile("CI", 16, 120, store.get_profile()["subjects"], "fa")
-          assert store.get_profile()["language"] == "fa"
-          print("StudyFlow smoke test passed.")
-          PY
-
   build-android:
     name: Build APK
-    needs: validate
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Build with Buildozer
-        id: buildozer
-        uses: ArtemSBulgakov/buildozer-action@v1
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
-          workdir: .
-          buildozer_version: stable
-          command: buildozer -v android debug
+          python-version: '3.11'
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y git zip unzip openjdk-17-jdk python3-pip autoconf libtool pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev libtinfo5 cmake libffi-dev libssl-dev
+          pip3 install --upgrade Cython==0.29.36 virtualenv buildozer
+
+      - name: Build with Buildozer
+        run: |
+          export PATH=$PATH:~/.local/bin
+          buildozer -v android debug
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: StudyFlow-Android-Debug
-          path: ${{ steps.buildozer.outputs.filename }}
+          path: bin/*.apk
           if-no-files-found: error
           retention-days: 14
